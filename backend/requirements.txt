@@ -1,0 +1,23 @@
+# Backend Dependencies
+
+# Core LangChain
+langchain==0.2.14
+langchain-core==0.2.34
+langgraph==0.2.14
+
+# Free LLM and Embeddings
+langchain-google-genai==1.0.8  # Free Google Gemini API
+langchain-huggingface==0.0.3   # Free HuggingFace embeddings
+
+# Free Search Tools
+tavily-python==0.3.3      # Free Internet Search for AI
+duckduckgo-search==6.2.13 # Free emulator for Google Grounding
+langchain-community==0.2.12
+
+# Vector Database
+faiss-cpu==1.8.0
+pypdf==4.3.1
+
+# Tracing
+langsmith==0.1.104
+python-dotenv==1.0.1
