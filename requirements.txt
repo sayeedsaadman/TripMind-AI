@@ -1,4 +1,4 @@
-# Unified Requirements (Copied from root for Streamlit Cloud compatibility)
+# Unified Requirements for TripMind-AI Development & Deployment
 
 # Backend Dependencies
 langchain==0.2.14
@@ -13,6 +13,8 @@ faiss-cpu==1.8.0
 pypdf==4.3.1
 langsmith==0.1.104
 python-dotenv==1.0.1
+langchain-groq==0.1.9
+langchain-openai==0.1.22
 
 # Frontend Dependencies
 streamlit==1.37.1
