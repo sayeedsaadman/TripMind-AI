@@ -25,6 +25,7 @@ if "pending_image"    not in st.session_state: st.session_state.pending_image   
 if "pending_img_type" not in st.session_state: st.session_state.pending_img_type = None
 if "pending_img_name" not in st.session_state: st.session_state.pending_img_name = None
 if "trigger_prompt"   not in st.session_state: st.session_state.trigger_prompt   = None
+if "uploader_key"     not in st.session_state: st.session_state.uploader_key     = 0
 
 IS_DARK = st.session_state.theme == "dark"
 
@@ -75,7 +76,7 @@ def svg(name, size=18, color="currentColor"):
             f'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{p}</svg>')
 
 
-# ── Global CSS ─────────────────────────────────────────────────────────────────
+# ── CSS Refinement ──
 st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
@@ -86,79 +87,84 @@ html, body, [class*="css"] {{
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
 }}
 
-/* ── App background ── */
+/* ── App background with premium gradient ── */
 .stApp {{
-    background: {T['bg0']} !important;
+    background: radial-gradient(circle at 50% -20%, {T['bg3']} 0%, {T['bg0']} 80%) !important;
+    background-attachment: fixed !important;
     color: {T['txt0']} !important;
 }}
 
 /* ── Hide Streamlit chrome ── */
-/* ── Hide Streamlit chrome decoration — preserve sidebar toggle ── */
 [data-testid="stDecoration"], [data-testid="stToolbar"], footer {{ visibility: hidden !important; }}
 [data-testid="stHeader"] {{ 
     background: transparent !important;
-    color: {T['txt1']} !important;
 }}
-.block-container {{
-    padding: 0 !important;
-    max-width: 100% !important;
-}}
-
-/* ── Scrollbar ── */
-::-webkit-scrollbar {{ width: 4px; }}
-::-webkit-scrollbar-thumb {{ background: {T['border2']}; border-radius: 4px; }}
-::-webkit-scrollbar-track {{ background: transparent; }}
 
 /* ═══════════════════════════════════════
-   SIDEBAR
+   MAIN CONTAINER
+═══════════════════════════════════════ */
+.block-container {{
+    padding: 1.5rem 2rem !important;
+    max-width: 850px !important;
+    margin: 0 auto !important;
+    transition: all 0.3s ease;
+}}
+
+/* ═══════════════════════════════════════
+   TOP BAR / NAV
+═══════════════════════════════════════ */
+.topbar {{
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1.75rem;
+    background: {T['bg1']}aa;
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid {T['border']};
+    margin: -1.5rem -2rem 2rem -2rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+}}
+.topbar-left {{ display: flex; align-items: center; gap: 0.7rem; }}
+.topbar-title {{
+    font-size: 17px;
+    font-weight: 800;
+    color: {T['txt0']};
+    letter-spacing: -0.5px;
+}}
+.topbar-badge {{
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: {T['accent']};
+    background: {T['accent_glow']};
+    border: 1px solid {T['accent']}33;
+    border-radius: 6px;
+    padding: 0.1rem 0.45rem;
+}}
+.topbar-right {{
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 13px;
+    color: {T['txt2']};
+    font-weight: 500;
+}}
+
+/* ═══════════════════════════════════════
+   SIDEBAR REFINEMENT
 ═══════════════════════════════════════ */
 section[data-testid="stSidebar"] {{
     background: {T['bg1']} !important;
     border-right: 1px solid {T['border']} !important;
 }}
-
-/* Ensure sidebar minimizes cleanly without blocking main content width */
-section[data-testid="stSidebar"][aria-expanded="false"] {{
-    margin-left: -280px !important;
-}}
-
 section[data-testid="stSidebar"] > div:first-child {{
     padding: 0 !important;
-    overflow-x: hidden;
 }}
 
-/* ═══════════════════════════════════════
-   MAIN CONTENT AREA
-═══════════════════════════════════════ */
-/* Add horizontal gap/padding for professional spacing */
-.block-container {{
-    padding: 1.5rem 2rem !important;
-    max-width: 1000px !important;
-    margin: 0 auto !important;
-    transition: padding 0.3s ease;
-}}
-
-/* Mobile responsiveness */
-@media (max-width: 768px) {{
-    .block-container {{
-        padding: 1rem 1.25rem !important;
-    }}
-    .topbar {{
-        padding: 0.75rem 1rem !important;
-    }}
-    .welcome h2 {{
-        font-size: 22px !important;
-    }}
-    .chips-row {{
-        flex-direction: column !important;
-        align-items: center !important;
-    }}
-    .stButton > button {{
-        width: 100% !important;
-    }}
-}}
-
-/* Sidebar text color fix ── ensure labels are readable */
+/* Sidebar text color fix */
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] span,
 section[data-testid="stSidebar"] label,
@@ -166,129 +172,163 @@ section[data-testid="stSidebar"] div {{
     color: {T['txt1']} !important;
 }}
 
-/* ── Sidebar buttons ── */
+/* Sidebar buttons */
 section[data-testid="stSidebar"] .stButton > button {{
     background: {T['bg3']} !important;
     color: {T['txt0']} !important;
     border: 1px solid {T['border']} !important;
-    border-radius: 8px !important;
-    font-size: 13px !important;
-    font-weight: 500 !important;
-    padding: 0.4rem 0.8rem !important;
+    border-radius: 10px !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    padding: 0.5rem 1rem !important;
     width: 100% !important;
-    transition: all 0.18s ease !important;
-    margin-bottom: 4px !important;
+    transition: all 0.2s ease !important;
+    margin-bottom: 6px !important;
 }}
 section[data-testid="stSidebar"] .stButton > button:hover {{
-    background: {T['border']} !important;
+    background: {T['accent']} !important;
+    color: white !important;
     border-color: {T['accent']} !important;
-    color: {T['accent']} !important;
 }}
-
-/* ── Sidebar file uploader ── */
-section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {{
-    background: {T['bg2']} !important;
-    border: 1.5px dashed {T['border2']} !important;
-    border-radius: 8px !important;
-}}
-
-/* ═══════════════════════════════════════
-   TOP BAR
-═══════════════════════════════════════ */
-.topbar {{
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem 2rem;
-    background: {T['bg1']};
-    border-bottom: 1px solid {T['border']};
-}}
-.topbar-left {{ display: flex; align-items: center; gap: 0.55rem; }}
-.topbar-title {{
-    font-size: 16px;
-    font-weight: 700;
-    color: {T['txt0']};
-    letter-spacing: -0.2px;
-}}
-.topbar-badge {{
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: {T['accent']};
-    background: {T['accent_glow']};
-    border: 1px solid {T['accent']}55;
-    border-radius: 99px;
-    padding: 0.1rem 0.5rem;
-}}
-.topbar-right {{
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 12.5px;
-    color: {T['txt2']};
-}}
-
-/* ═══════════════════════════════════════
-   WELCOME / EMPTY STATE
-═══════════════════════════════════════ */
 .welcome {{
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 3.5rem 1rem 2rem;
+    justify-content: center;
+    padding: 5rem 1rem 2rem;
     text-align: center;
 }}
 .welcome-icon {{
-    width: 68px; height: 68px;
+    width: 72px; height: 72px;
     background: linear-gradient(135deg, {T['accent']}, {T['accent2']});
-    border-radius: 50%;
+    border-radius: 22px;
     display: flex; align-items: center; justify-content: center;
-    margin-bottom: 1.25rem;
-    box-shadow: 0 0 0 10px {T['accent_glow']};
-    animation: pulse-glow 3s ease-in-out infinite;
+    margin-bottom: 2rem;
+    box-shadow: 0 15px 35px {T['accent']}44;
+    transform: rotate(-4deg);
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }}
-@keyframes pulse-glow {{
-    0%, 100% {{ box-shadow: 0 0 0 10px {T['accent_glow']}; }}
-    50%       {{ box-shadow: 0 0 0 18px transparent; }}
+.welcome-icon:hover {{
+    transform: rotate(0deg) scale(1.05);
 }}
 .welcome h2 {{
-    font-size: 26px;
+    font-size: 36px;
     font-weight: 800;
     color: {T['txt0']};
-    letter-spacing: -0.5px;
-    margin-bottom: 0.4rem;
+    letter-spacing: -1.2px;
+    margin-bottom: 0.75rem;
 }}
 .welcome p {{
-    font-size: 14px;
+    font-size: 16px;
     color: {T['txt2']};
-    max-width: 340px;
+    max-width: 440px;
     line-height: 1.6;
-    margin-bottom: 2rem;
+    margin-bottom: 3rem;
 }}
 
-/* ── Chip buttons (welcome suggestions) —
-   These are Streamlit stButtons in the main area styled as pill chips. ── */
+/* ═══════════════════════════════════════
+   CHIPS (SUGGESTIONS)
+   Aggressive targeting to ensure horizontal centering & wrapping
+═══════════════════════════════════════ */
+/* Target the parent container of the chips area */
+[data-testid="stVerticalBlock"] > div:has(button[key^="chip_"]) {{
+    display: inline-block !important;
+    width: auto !important;
+    margin: 0.35rem !important;
+}}
+
+/* Ensure the wrapper of all chips is centered */
+div:has(> div > div > button[key^="chip_"]) {{
+    text-align: center !important;
+    display: block !important;
+    width: 100% !important;
+    margin-top: 1rem !important;
+}}
+
 .block-container .stButton > button {{
     background: {T['bg2']} !important;
     color: {T['txt1']} !important;
     border: 1px solid {T['border']} !important;
     border-radius: 99px !important;
-    font-size: 13px !important;
-    font-weight: 500 !important;
-    padding: 0.4rem 1rem !important;
-    transition: all 0.18s ease !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    padding: 0.55rem 1.4rem !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
     white-space: nowrap !important;
-    box-shadow: none !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
 }}
+
 .block-container .stButton > button:hover {{
-    background: {T['accent_glow']} !important;
+    background: {T['accent']} !important;
     border-color: {T['accent']} !important;
-    color: {T['accent']} !important;
-    transform: translateY(-1px) !important;
+    color: #ffffff !important;
+    transform: translateY(-3px) !important;
+    box-shadow: 0 6px 15px {T['accent']}33 !important;
+}}
+
+/* ═══════════════════════════════════════
+   CHATS & UI
+═══════════════════════════════════════ */
+[data-testid="stChatMessage"] {{
+    background: {T['bg1']}cc !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid {T['border']} !important;
+    border-radius: 18px !important;
+    box-shadow: {T['msg_shadow']} !important;
+}}
+
+/* User specific message tint */
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {{
+    background: {T['user_bg']}cc !important;
+    border-color: {T['user_border']} !important;
+}}
+
+/* Chat Input Bar */
+[data-testid="stChatInput"] {{
+    border-radius: 20px !important;
+    border: 1.5px solid {T['border']} !important;
+    background: {T['bg1']} !important;
+    padding: 4px !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+}}
+
+/* File Uploader Theme Fix (Dark Mode Support) */
+[data-testid="stFileUploaderDropzone"] {{
+    background-color: {T['bg2']} !important;
+    border: 1.5px dashed {T['border2']} !important;
+    border-radius: 12px !important;
+    transition: all 0.2s ease;
+}}
+[data-testid="stFileUploaderDropzone"]:hover {{
+    border-color: {T['accent']} !important;
+    background-color: {T['bg3']} !important;
+}}
+[data-testid="stFileUploaderDropzone"] p, 
+[data-testid="stFileUploaderDropzone"] span,
+[data-testid="stFileUploaderDropzone"] div {{
+    color: {T['txt1']} !important;
+}}
+/* Sidebar specific uploader tweak */
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {{
+    padding: 0.5rem !important;
+}}
+
+/* Hide the native Streamlit file list to avoid redundancy with our custom preview */
+[data-testid="stFileUploaderFileList"] {{
+    display: none !important;
+}}
+
+/* ═══════════════════════════════════════
+   MOBILE ADJUSTMENTS
+═══════════════════════════════════════ */
+@media (max-width: 768px) {{
+    .welcome h2 {{ font-size: 28px; }}
+    .welcome {{ padding: 3rem 1rem 1.5rem; }}
+    .welcome-icon {{ width: 60px; height: 60px; }}
+    .block-container .stButton > button {{
+        padding: 0.45rem 1rem !important;
+        font-size: 13px !important;
+    }}
 }}
 
 /* ═══════════════════════════════════════
@@ -701,13 +741,12 @@ if not st.session_state.chat_history:
     </div>
     """, unsafe_allow_html=True)
 
-    # Render chips as native Streamlit buttons (styled as pills via CSS above)
-    cols = st.columns(len(SUGGESTIONS))
-    for col, suggestion in zip(cols, SUGGESTIONS):
-        with col:
-            if st.button(suggestion, key=f"chip_{suggestion[:10]}"):
-                st.session_state.trigger_prompt = suggestion
-                st.rerun()
+    # Render chips in a group that our CSS will target and wrap
+    # Each chip will be an inline-block element centered via CSS
+    for suggestion in SUGGESTIONS:
+        if st.button(suggestion, key=f"chip_{suggestion[:10]}"):
+            st.session_state.trigger_prompt = suggestion
+            st.rerun()
 
     st.write("")  # spacing
 
@@ -736,20 +775,22 @@ for message in st.session_state.chat_history:
 # ══════════════════════════════════════════════════════════════════════════════
 # IMAGE ATTACH  (Only shown when chat is empty or for the first message)
 # ══════════════════════════════════════════════════════════════════════════════
-if not st.session_state.chat_history:
+# ── IMAGE ATTACHMENT AREA ──
+# This is always available above the chat input for landmark identification
+with st.container():
     st.markdown(
         f'<div class="attach-label">'
-        f'{svg("paperclip", 13, T["txt2"])}'
-        f'<span>Attach an image for landmark identification or document OCR</span>'
+        f'{svg("paperclip", 14, T["accent"])}'
+        f'<span style="font-weight:600; color:{T["txt1"]}">Identify a landmark or OCR a document</span>'
         f'</div>',
         unsafe_allow_html=True
     )
 
     uploaded_image = st.file_uploader(
-        "Attach image",
+        "Attach image for AI",
         type=["jpg", "jpeg", "png", "webp"],
         label_visibility="collapsed",
-        key="img_uploader"
+        key=f"img_uploader_{st.session_state.uploader_key}"
     )
 
     # When a new image is picked, stage it in session state
@@ -760,10 +801,10 @@ if not st.session_state.chat_history:
         st.session_state.pending_img_type = uploaded_image.type
         st.session_state.pending_img_name = uploaded_image.name
 
-# Show thumbnail strip + remove button when an image is staged (always show if staged)
+# Show thumbnail strip + remove button when an image is staged
 if st.session_state.pending_image:
-    col_t, col_r = st.columns([8, 1])
-    with col_t:
+    c_preview, c_close = st.columns([10, 1])
+    with c_preview:
         st.markdown(
             f'<div class="thumb-strip">'
             f'<img src="data:{st.session_state.pending_img_type};base64,'
@@ -772,11 +813,12 @@ if st.session_state.pending_image:
             f'</div>',
             unsafe_allow_html=True
         )
-    with col_r:
-        if st.button("✕", key="remove_img"):
+    with c_close:
+        if st.button("✕", key="remove_img_main"):
             st.session_state.pending_image    = None
             st.session_state.pending_img_type = None
             st.session_state.pending_img_name = None
+            st.session_state.uploader_key += 1
             st.rerun()
 
 
@@ -807,6 +849,7 @@ if user_prompt:
         st.session_state.pending_image    = None
         st.session_state.pending_img_type = None
         st.session_state.pending_img_name = None
+        st.session_state.uploader_key += 1  # Reset the uploader widget
 
     st.session_state.chat_history.append(user_msg)
     st.rerun()
