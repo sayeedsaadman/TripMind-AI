@@ -4,10 +4,8 @@ import sys
 import base64
 from dotenv import load_dotenv
 
-# Load environment variables before any backend imports
 load_dotenv()
 
-# Allow Python to resolve the backend package (one level above this file)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # ── Page Config ────────────────────────────────────────────────────────────────

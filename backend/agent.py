@@ -21,11 +21,23 @@ def get_chatbot_response(chat_history):
         return "I cannot respond yet! Please add your Google Gemini API key to the .env file."
         
     # 1. Initialize the Primary AI Model
-    primary_llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash", 
-        temperature=0.3,
-        max_retries=1, # Don't wait! If it fails, go to fallback immediately.
-    )
+    # Since Gemini is currently out of quota for the user, we promote Groq to primary!
+    groq_key = os.getenv("GROQ_API_KEY")
+    if groq_key and groq_key != "your_groq_api_key_here":
+        from langchain_groq import ChatGroq
+        primary_llm = ChatGroq(
+            model="llama-3.3-70b-versatile", 
+            api_key=groq_key,
+            temperature=0.3
+        )
+        print("--- DEBUG: Using Groq as Primary Model ---")
+    else:
+        primary_llm = ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash-lite", 
+            temperature=0.3,
+            max_retries=0, 
+        )
+        print("--- DEBUG: Using Gemini as Primary Model ---")
     
     # 1.1 Setup Fallback Models (Optional)
     # We add fallbacks in order of preference.
@@ -35,24 +47,19 @@ def get_chatbot_response(chat_history):
     second_gemini_key = os.getenv("SECONDARY_GOOGLE_API_KEY")
     if second_gemini_key and second_gemini_key != "your_secondary_api_key_here":
         fallbacks.append(ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash", 
+            model="gemini-2.0-flash-lite", 
             google_api_key=second_gemini_key,
             temperature=0.3,
-            max_retries=1, # Quick failure for secondary Gemini too
+            max_retries=0, 
         ))
         
-    # Option B: Groq (Llama 3.1 70B is a great free/cheap alternative)
-    groq_key = os.getenv("GROQ_API_KEY")
-    if groq_key:
-        try:
-            from langchain_groq import ChatGroq
-            fallbacks.append(ChatGroq(
-                model="llama-3.1-70b-versatile", 
-                api_key=groq_key,
-                temperature=0.3
-            ))
-        except ImportError:
-            print("Warning: langchain-groq not installed. Skipping Groq fallback.")
+    # Option B: Gemini (Moved to fallback since quota is tight)
+    if os.getenv("GOOGLE_API_KEY"):
+        fallbacks.append(ChatGoogleGenerativeAI(
+            model="gemini-2.0-flash-lite", 
+            temperature=0.3,
+            max_retries=0,
+        ))
 
     # Option C: OpenAI
     openai_key = os.getenv("OPENAI_API_KEY")
@@ -108,12 +115,18 @@ def get_chatbot_response(chat_history):
     gemini_tools = [format_tool_for_gemini(t) for t in active_tools]
     
     # 2.2 Bind tools to each model individually for reliability
-    # This ensures that with_fallbacks works correctly with tool calling
-    primary_llm_with_tools = primary_llm.bind_tools(gemini_tools)
+    def bind_appropriately(model):
+        if hasattr(model, "google_api_key") or "ChatGoogleGenerativeAI" in str(type(model)):
+            return model.bind_tools(gemini_tools)
+        else:
+            # Groq, OpenAI etc.
+            return model.bind_tools(active_tools)
+
+    primary_llm_with_tools = bind_appropriately(primary_llm)
     
     if fallbacks:
-        fallbacks_with_tools = [f.bind_tools(gemini_tools) for f in fallbacks]
-        llm_with_tools = primary_llm_with_tools.with_fallbacks(fallbacks_with_tools)
+        processed_fallbacks = [bind_appropriately(f) for f in fallbacks]
+        llm_with_tools = primary_llm_with_tools.with_fallbacks(processed_fallbacks)
     else:
         llm_with_tools = primary_llm_with_tools
     
@@ -122,14 +135,59 @@ def get_chatbot_response(chat_history):
     def agent_node(state: MessagesState):
         """The AI makes a decision: answer or use a tool."""
         print("--- DEBUG: Invoking LLM Chain ---")
+        
+        # Determine if the CURRENT model being invoked supports vision.
+        # This is tricky with fallbacks, so we sanitize for the MOST RESTRICTIVE model 
+        # unless we are sure it's a vision model.
+        
+        # Helper to sanitize messages for non-vision models
+        def sanitize_messages(msgs):
+            sanitized = []
+            for m in msgs:
+                if isinstance(m.content, list):
+                    # Extract only text parts
+                    text_content = ""
+                    for part in m.content:
+                        if isinstance(part, dict) and part.get("type") == "text":
+                            text_content += part.get("text", "")
+                        elif isinstance(part, str):
+                            text_content += part
+                    # Create a new message of the same type but with string content
+                    sanitized.append(type(m)(content=text_content))
+                else:
+                    sanitized.append(m)
+            return sanitized
+
         try:
-            response = llm_with_tools.invoke(state["messages"])
-            print(f"--- DEBUG: LLM Success with model: {response.response_metadata.get('model_name', 'unknown')} ---")
+            # We check the primary model first. If it's NOT Gemini, we sanitize.
+            # (In your current setup, Groq is primary if keys exist, and it doesn't support the vision format used here).
+            current_messages = state["messages"]
+            
+            # Simple heuristic: if we are using Groq (llama), we MUST sanitize.
+            if "ChatGroq" in str(type(primary_llm)):
+                 print("--- DEBUG: Sanitizing messages for non-vision primary (Groq) ---")
+                 current_messages = sanitize_messages(current_messages)
+
+            response = llm_with_tools.invoke(current_messages)
+            
+            # Extract which model actually answered
+            actual_model = response.response_metadata.get('model_name', 'Unknown Model')
+            print(f"--- DEBUG: LLM Success with model: {actual_model} ---")
+            
             return {"messages": [response]}
         except Exception as e:
+            error_str = str(e).lower()
             print(f"--- DEBUG: LLM Chain Error: {str(e)} ---")
-            # If everything fails, return a friendly error message instead of crashing
-            error_msg = AIMessage(content=f"I'm sorry, all my AI brains are currently exhausted (Quota Limit). Please try again in a few minutes.\n\nDetails: {str(e)}")
+            
+            # Distinguish between Quota and other errors
+            if "quota" in error_str or "429" in error_str or "rate limit" in error_str:
+                msg_content = f"I'm sorry, all my AI brains (Gemini/Groq) are currently exhausted (Quota Limit). Please try again in a few minutes or check your API billing.\n\nDetails: {str(e)}"
+            elif "400" in error_str:
+                msg_content = f"I encountered a formatting error (400). This usually happens when I try to send an image to a model that only understands text. I'll try to recover by ignoring the image.\n\nDetails: {str(e)}"
+            else:
+                msg_content = f"Oops! I hit a snag: {str(e)}"
+                
+            error_msg = AIMessage(content=msg_content)
             return {"messages": [error_msg]}
 
     def should_continue(state: MessagesState):

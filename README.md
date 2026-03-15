@@ -1,4 +1,4 @@
-# TripMind AI ✈️
+# TripMind AI 
 
 TripMind AI is a state-of-the-art, AI-powered travel assistant designed to modernize how you plan your journeys. By leveraging the power of Google Gemini and advanced RAG (Retrieval-Augmented Generation), it transforms static travel documents and vast internet data into personalized, interactive travel experiences.
 
