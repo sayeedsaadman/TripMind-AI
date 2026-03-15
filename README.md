@@ -113,16 +113,5 @@ TripMind AI is fully instrumented with **LangSmith**. Every agent decision, tool
 
 ---
 
-## 🤝 Contributing
-
-We welcome contributions! If you have ideas for new agents (e.g., Budget Agent, Booking Specialist), feel free to fork the repo and submit a PR.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
 
 **Plan Smarter. Explore Further. Discover Much More with TripMind AI.** 🌍✈️
