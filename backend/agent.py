@@ -21,26 +21,15 @@ def get_chatbot_response(chat_history):
         return "I cannot respond yet! Please add your Google Gemini API key to the .env file."
         
     # 1. Initialize the Primary AI Model
-    # Since Gemini is currently out of quota for the user, we promote Groq to primary!
-    groq_key = os.getenv("GROQ_API_KEY")
-    if groq_key and groq_key != "your_groq_api_key_here":
-        from langchain_groq import ChatGroq
-        primary_llm = ChatGroq(
-            model="llama-3.3-70b-versatile", 
-            api_key=groq_key,
-            temperature=0.3
-        )
-        print("--- DEBUG: Using Groq as Primary Model ---")
-    else:
-        primary_llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash-lite", 
-            temperature=0.3,
-            max_retries=0, 
-        )
-        print("--- DEBUG: Using Gemini as Primary Model ---")
+    primary_llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash-lite", 
+        temperature=0.3,
+        max_retries=0, 
+    )
+    print("--- DEBUG: Using Gemini as Primary Model ---")
     
-    # 1.1 Setup Fallback Models (Optional)
-    # We add fallbacks in order of preference.
+    # 1.1 Setup Fallback Models
+    # We add fallbacks in order of preference: secondary Gemini, then Groq
     fallbacks = []
     
     # Option A: Secondary Gemini Key
@@ -53,33 +42,22 @@ def get_chatbot_response(chat_history):
             max_retries=0, 
         ))
         
-    # Option B: Gemini (Moved to fallback since quota is tight)
-    if os.getenv("GOOGLE_API_KEY"):
-        fallbacks.append(ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash-lite", 
+    # Option B: Groq
+    groq_key = os.getenv("GROQ_API_KEY")
+    if groq_key and groq_key != "your_groq_api_key_here":
+        from langchain_groq import ChatGroq
+        fallbacks.append(ChatGroq(
+            model="llama-3.3-70b-versatile", 
+            api_key=groq_key,
             temperature=0.3,
-            max_retries=0,
+            max_retries=0
         ))
-
-    # Option C: OpenAI
-    openai_key = os.getenv("OPENAI_API_KEY")
-    if openai_key:
-        try:
-            from langchain_openai import ChatOpenAI
-            fallbacks.append(ChatOpenAI(
-                model="gpt-4o-mini", 
-                api_key=openai_key,
-                temperature=0.3
-            ))
-        except ImportError:
-            print("Warning: langchain-openai not installed. Skipping OpenAI fallback.")
 
     # 1.2 Debug: Check what fallbacks are loaded
     print(f"--- DEBUG: LLM Configuration ---")
     print(f"Primary Gemini Key: {'Found' if os.getenv('GOOGLE_API_KEY') else 'NOT FOUND'}")
     print(f"Secondary Gemini: {'Found' if second_gemini_key else 'NOT FOUND'}")
     print(f"Groq: {'Found' if groq_key else 'NOT FOUND'}")
-    print(f"OpenAI: {'Found' if openai_key else 'NOT FOUND'}")
     print(f"Total fallbacks configured: {len(fallbacks)}")
     print(f"---------------------------------")
     

@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage
 
 load_dotenv()
@@ -20,13 +20,13 @@ def test_fallback():
         "description": "Searches travel guides"
     }]
 
-    primary = ChatGoogleGenerativeAI(model="gemini-1.5-flash", max_retries=0)
-    # Intentionally use a working OpenAI key to see if it takes over
-    fallback = ChatOpenAI(model="gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"), max_retries=0)
+    primary = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", max_retries=0)
+    # Use Groq as the fallback model
+    fallback = ChatGroq(model="llama-3.3-70b-versatile", api_key=os.getenv("GROQ_API_KEY"), max_retries=0)
     
     # Simulate the logic in agent.py
     primary_with_tools = primary.bind_tools(tools)
-    fallback_with_tools = fallback.bind_tools(tools) # OpenAI can take standard tool list or dicts
+    fallback_with_tools = fallback.bind_tools(tools)
     
     chain = primary_with_tools.with_fallbacks([fallback_with_tools])
     

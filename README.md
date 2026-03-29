@@ -28,8 +28,8 @@
 *   **Document Parsing (OCR)**: Extract critical info from flight tickets, hotel receipts, or physical brochures with a single image upload.
 
 ### ✨ State-of-the-Art UI
-*   **Glassmorphism Design**: A premium, modern interface with fluid animations, custom SVG icons, and a Plus Jakarta Sans typography.
-*   **Theme Versatility**: Seamless transition between sophisticated Light and Dark modes.
+*   **Glassmorphism Design**: A premium, modern interface with fluid animations, custom SVG icons, and **Inter** typography.
+*   **Premium Dark Aesthetic**: A sophisticated, high-contrast dark-mode interface designed for professional immersion and ease of use.
 
 ---
 
